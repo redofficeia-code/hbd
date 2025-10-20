@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>🎉 Feliz Cumple, Jefe 🎂</title>
+  <style>
+    :root{
+      --bg1:#4f46e5; /* indigo-600 */
+      --bg2:#06b6d4; /* cyan-500 */
+      --text:#0b1220;
+      --card:#ffffff;
+      --accent:#f59e0b; /* amber-500 */
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;
+      background: radial-gradient(1200px 800px at 20% 10%, rgba(255,255,255,.25), transparent 60%),
+                  radial-gradient(900px 600px at 80% 30%, rgba(255,255,255,.15), transparent 60%),
+                  linear-gradient(135deg,var(--bg1),var(--bg2));
+      color:#111; display:flex; align-items:center; justify-content:center; padding:24px;
+    }
+    .card{
+      width:min(900px,100%); background:var(--card); border-radius:24px; box-shadow:0 20px 60px rgba(0,0,0,.18);
+      overflow:hidden; position:relative;
+    }
+    header{
+      padding:28px 24px 12px; text-align:center; background:conic-gradient(from 180deg at 50% 50%, #fff, #fff 70%, #ffecc2);
+    }
+    h1{margin:0; font-size:clamp(26px,4vw,44px); letter-spacing:.5px}
+    .sub{margin:8px 0 0; color:#374151}
+    .hero{
+      padding:24px; display:grid; gap:16px; grid-template-columns: 1fr; justify-items:center;
+    }
+    .cover{
+      aspect-ratio: 16 / 9; width: min(820px, 100%); border-radius:18px; background:#0b1220; display:grid; place-items:center; position:relative; overflow:hidden;
+      outline:2px solid rgba(0,0,0,.05)
+    }
+    .cover::after{
+      content:""; position:absolute; inset:0; background:
+        radial-gradient(60% 80% at 70% 20%, rgba(255,255,255,.06), transparent),
+        radial-gradient(40% 40% at 10% 80%, rgba(255,255,255,.04), transparent);
+      pointer-events:none
+    }
+    .start{
+      border:0; background:var(--accent); color:#111; font-weight:700; font-size:clamp(16px,2.2vw,20px);
+      padding:14px 22px; border-radius:14px; cursor:pointer; display:inline-flex; align-items:center; gap:10px;
+      box-shadow:0 8px 20px rgba(245,158,11,.35); transition: transform .08s ease, box-shadow .2s ease;
+    }
+    .start:active{ transform: translateY(1px); box-shadow:0 6px 14px rgba(245,158,11,.38)}
+    .hint{color:#6b7280; font-size:14px; text-align:center}
+
+    #playerWrap{display:none}
+    .confetti{ position: fixed; top:-10px; left:0; width:100%; height:0; pointer-events:none; }
+    .piece{ position:absolute; top:-10px; width:8px; height:14px; opacity:.9; border-radius:2px; animation: fall 2100ms linear forwards; }
+    @keyframes fall{ to{ transform: translate3d(var(--x,0px), 110vh, 0) rotate(720deg); opacity:1 } }
+
+    footer{padding:10px 16px 22px; text-align:center; color:#6b7280}
+    a{color:#2563eb; text-decoration:none}
+    .err{display:none; color:#b91c1c; font-weight:600; margin-top:8px; text-align:center}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <header>
+      <h1>🎉 ¡Feliz Cumple, Jefe! 🎂</h1>
+      <p class="sub">Trajimos vibes, confeti y un video sorpresa. Cuando diga <strong>Iniciar</strong>, usted le da… 😎</p>
+    </header>
+
+    <section class="hero">
+      <div id="cover" class="cover" role="group" aria-label="Portada del video">
+        <button id="startBtn" class="start" aria-controls="player" aria-label="Iniciar video">▶️ Iniciar</button>
+        <p class="hint"><code></code> — .</p>
+        <p id="err" class="err">N</p>
+      </div>
+
+      <div id="playerWrap" class="cover" aria-live="polite">
+        <div id="player" style="width:100%; height:100%"></div>
+      </div>
+    </section>
+
+    <footer>
+      Hecha con ❤️ y energéticas. 🤓🤓🤓 (No nos despida)
+    </footer>
+  </div>
+
+  <canvas class="confetti" id="confetti"></canvas>
+
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <script>
+    const DEFAULT_VIDEO_ID = 'HgwRm_tIJbc'; // ID extraído de la URL pedida
+
+    function normalizeVideoId(input){
+      if(!input) return '';
+      try{ input = decodeURIComponent(input.trim()); }catch(e){}
+      if(/^https?:\/\//i.test(input)){
+        try{
+          const u = new URL(input);
+          if(u.hostname.includes('youtu.be')) return u.pathname.split('/').filter(Boolean)[0] || '';
+          const v = u.searchParams.get('v');
+          if(v) return v;
+          const parts = u.pathname.split('/');
+          const idx = parts.indexOf('embed');
+          if(idx !== -1 && parts[idx+1]) return parts[idx+1];
+        }catch(e){}
+      }
+      return (input.match(/[a-zA-Z0-9_-]{8,}/)?.[0]) || '';
+    }
+
+    const qs = new URLSearchParams(location.search);
+    const raw = qs.get('v');
+    const videoId = normalizeVideoId(raw) || DEFAULT_VIDEO_ID;
+
+    let player;
+    window.onYouTubeIframeAPIReady = function(){
+      player = new YT.Player('player', {
+        height: '100%', width: '100%', videoId: videoId,
+        playerVars: { playsinline:1, rel:0, modestbranding:1 },
+        events: { 'onError': function(){ showError(); } }
+      });
+    }
+
+    const startBtn = document.getElementById('startBtn');
+    const cover = document.getElementById('cover');
+    const playerWrap = document.getElementById('playerWrap');
+
+    startBtn.addEventListener('click', () => {
+      cover.style.display = 'none';
+      playerWrap.style.display = 'grid';
+      if (player && player.playVideo) player.playVideo(); else fallbackEmbed();
+      burstConfetti();
+    });
+
+    function fallbackEmbed(){
+      const iframe = document.createElement('iframe');
+      const src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1`;
+      iframe.setAttribute('src', src);
+      iframe.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture');
+      iframe.setAttribute('allowfullscreen', '');
+      iframe.style.width = '100%';
+      iframe.style.height = '100%';
+      playerWrap.innerHTML = '';
+      playerWrap.appendChild(iframe);
+    }
+
+    function showError(){ document.getElementById('err').style.display = 'block'; }
+
+    function burstConfetti(){
+      const colors = ['#ef4444','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899'];
+      const confetti = document.getElementById('confetti');
+      const count = 120;
+      const W = window.innerWidth;
+      for(let i=0;i<count;i++){
+        const piece = document.createElement('div');
+        piece.className = 'piece';
+        piece.style.left = Math.random()*W + 'px';
+        piece.style.background = colors[i%colors.length];
+        piece.style.setProperty('--x', (Math.random()*200 - 100) + 'px');
+        piece.style.animationDelay = (Math.random()*0.35) + 's';
+        confetti.appendChild(piece);
+        setTimeout(()=> piece.remove(), 2400);
+      }
+    }
+  </script>
+</body>
+</html>
